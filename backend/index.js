@@ -44,8 +44,8 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("roomUpdated", getRoomState(roomId));
   });
 
-  socket.on("startGame", ({ roomId, category }) => {
-    const result = startGame(roomId, category);
+  socket.on("startGame", ({ roomId, category, impostorCount }) => {
+    const result = startGame(roomId, category, impostorCount);
     if (!result.error) {
       io.to(roomId).emit("gameStarted", getRoomState(roomId));
     }
@@ -53,10 +53,16 @@ io.on("connection", (socket) => {
 
   socket.on("vote", ({ roomId, targetId }) => {
     const result = registerVote(roomId, socket.id, targetId);
-    if (result && result.votingFinished) {
-      io.to(roomId).emit("gameEnded", getRoomState(roomId));
-    } else if (result) {
+    if (result) {
       io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+    }
+  });
+
+  socket.on("endVoting", ({ roomId }) => {
+    const { endVotingPhase } = require("./gameManager");
+    const result = endVotingPhase(roomId);
+    if (result && result.success) {
+      io.to(roomId).emit("gameEnded", getRoomState(roomId));
     }
   });
 

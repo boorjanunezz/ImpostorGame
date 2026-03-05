@@ -55,7 +55,7 @@ function createRoom(socketId, hostName) {
     players: [hostPlayer],
     secretWord: null,
     category: null,
-    impostorId: null,
+    impostorIds: [], // Changed from impostorId to array
   };
 
   return { roomId, player: hostPlayer };
@@ -79,6 +79,7 @@ function joinRoom(roomId, socketId, playerName) {
     name: playerName,
     role: null,
     hasVoted: false,
+    votedFor: null,
     votesReceived: 0,
   };
 
@@ -107,10 +108,15 @@ function leaveRoom(socketId) {
   return roomsAffected;
 }
 
-function startGame(roomId, categoryName) {
+function startGame(roomId, categoryName, impostorCount = 1) {
   const room = rooms[roomId];
   if (!room) return { error: 'Room not found' };
   if (room.players.length < 3) return { error: 'Mínimo 3 jugadores' };
+  
+  // Cap impostor count to players / half roughly
+  let actualImpostors = parseInt(impostorCount) || 1;
+  const maxImpostors = Math.max(1, Math.floor(room.players.length / 2) - 1) || 1;
+  if (actualImpostors > maxImpostors) actualImpostors = maxImpostors;
 
   const cats = Object.keys(WORDS);
   const selectedCategory = categoryName && WORDS[categoryName] ? categoryName : cats[Math.floor(Math.random() * cats.length)];
@@ -120,18 +126,24 @@ function startGame(roomId, categoryName) {
   room.category = selectedCategory;
   room.secretWord = secretWord;
   room.state = 'Playing';
+  room.impostorIds = [];
 
-  // Reset votes
+  // Reset votes and roles
   room.players.forEach(p => {
     p.hasVoted = false;
+    p.votedFor = null;
     p.votesReceived = 0;
     p.role = 'crew';
   });
 
-  // Assign impostor
-  const impostorIndex = Math.floor(Math.random() * room.players.length);
-  room.players[impostorIndex].role = 'impostor';
-  room.impostorId = room.players[impostorIndex].id;
+  // Assign impostors randomly
+  const availableIndices = Array.from({length: room.players.length}, (_, i) => i);
+  for (let i = 0; i < actualImpostors; i++) {
+    const randomPick = Math.floor(Math.random() * availableIndices.length);
+    const chosenIndex = availableIndices.splice(randomPick, 1)[0];
+    room.players[chosenIndex].role = 'impostor';
+    room.impostorIds.push(room.players[chosenIndex].id);
+  }
 
   return { success: true };
 }
@@ -143,23 +155,33 @@ function registerVote(roomId, socketId, targetId) {
   const voter = room.players.find(p => p.id === socketId);
   const target = room.players.find(p => p.id === targetId);
   
-  if (!voter || !target || voter.hasVoted) return null;
+  if (!voter || !target) return null;
+
+  // If changing vote
+  if (voter.hasVoted && voter.votedFor) {
+    const previousTarget = room.players.find(p => p.id === voter.votedFor);
+    if (previousTarget) {
+      previousTarget.votesReceived = Math.max(0, previousTarget.votesReceived - 1);
+    }
+  }
 
   voter.hasVoted = true;
+  voter.votedFor = targetId;
   target.votesReceived += 1;
   
-  // Transition to Voting if not already (safeguard)
   if(room.state !== 'Voting') {
       room.state = 'Voting';
   }
 
-  const allVoted = room.players.every(p => p.hasVoted);
-  if (allVoted) {
-    room.state = 'Results';
-    return { votingFinished: true };
-  }
-
+  // We no longer auto-transition. Host must click End Voting.
   return { votingFinished: false };
+}
+
+function endVotingPhase(roomId) {
+  const room = rooms[roomId];
+  if (!room) return null;
+  room.state = 'Results';
+  return { success: true };
 }
 
 function resetRoom(roomId) {
@@ -169,11 +191,12 @@ function resetRoom(roomId) {
   room.state = 'Lobby';
   room.secretWord = null;
   room.category = null;
-  room.impostorId = null;
+  room.impostorIds = [];
 
   room.players.forEach(p => {
     p.role = null;
     p.hasVoted = false;
+    p.votedFor = null;
     p.votesReceived = 0;
   });
 
@@ -197,6 +220,7 @@ module.exports = {
   leaveRoom,
   startGame,
   registerVote,
+  endVotingPhase,
   resetRoom,
   getRoomState,
   WORDS

@@ -2,42 +2,56 @@
 // let's create a dedicated VotingPhase just in case someone else triggers it first.
 export default function VotingPhase({ socket, roomState, socketId }) {
   const me = roomState.players.find(p => p.id === socketId);
+  const isHost = roomState.host === socketId;
 
   const handleVote = (targetId) => {
-    if (!me.hasVoted) {
-      socket.emit('vote', { roomId: roomState.id, targetId });
-    }
+    socket.emit('vote', { roomId: roomState.id, targetId });
   };
+
+  const handleEndVoting = () => {
+    socket.emit('endVoting', { roomId: roomState.id });
+  };
+
+  const totalVoted = roomState.players.filter(p => p.hasVoted).length;
 
   return (
     <div className="glass-panel" style={{ margin: 'auto', width: '100%', maxWidth: '400px' }}>
       <h2>¡Tiempo de votar!</h2>
-      <p style={{ marginBottom: '20px' }}>¿Quién es el impostor?</p>
+      <p style={{ marginBottom: '20px' }}>¿Quién es el impostor? Múltiples votos permitidos.</p>
 
       <div className="player-list">
-        {roomState.players.map(p => (
-          <button 
-            key={p.id} 
-            className={`player-item ${me.hasVoted ? 'btn-disabled' : 'pulse'}`} 
-            onClick={() => handleVote(p.id)}
-            disabled={me.hasVoted}
-            style={{ 
-              width: '100%', 
-              cursor: me.hasVoted ? 'default' : 'pointer', 
-              background: 'rgba(255,255,255,0.05)', 
-              color: 'white', 
-              border: '1px solid rgba(255,255,255,0.2)',
-              marginBottom: '10px'
-            }}
-          >
-            <span>{p.name} {p.id === socketId ? '(Tú)' : ''}</span>
-            {p.hasVoted && <span style={{fontSize: '0.8rem', color: 'var(--success-color)'}}>✔ Votó</span>}
-          </button>
-        ))}
+        {roomState.players.map(p => {
+          const isMySelectedTarget = me.votedFor === p.id;
+          return (
+            <button 
+              key={p.id} 
+              className={`player-item pulse`} 
+              onClick={() => handleVote(p.id)}
+              style={{ 
+                width: '100%', 
+                cursor: 'pointer',
+                background: isMySelectedTarget ? 'rgba(255, 51, 102, 0.2)' : 'rgba(255,255,255,0.05)', 
+                color: 'white', 
+                border: isMySelectedTarget ? '2px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.2)',
+                marginBottom: '10px',
+                transition: 'all 0.3s'
+              }}
+            >
+              <span>{p.name} {p.id === socketId ? '(Tú)' : ''}</span>
+              {p.hasVoted && <span style={{fontSize: '0.8rem', color: 'var(--success-color)'}}>✔</span>}
+            </button>
+          )
+        })}
       </div>
 
-      {me.hasVoted && (
-        <p style={{ marginTop: '20px', color: 'var(--crew-color)' }}>Esperando a los demás jugadores...</p>
+      <p style={{ marginTop: '20px', color: 'var(--crew-color)' }}>
+        Han votado {totalVoted} / {roomState.players.length}
+      </p>
+
+      {isHost && (
+        <button className="btn-primary pulse" style={{ marginTop: '20px' }} onClick={handleEndVoting}>
+          Cerrar Votación
+        </button>
       )}
     </div>
   );

@@ -76,6 +76,8 @@ export default function Home({ socket, setPlayerName, playerName }) {
           <button className="btn-secondary" onClick={() => { setMode('menu'); setErrorMsg(''); }}>Atrás</button>
         </div>
       )}
+
+      <p style={{ marginTop: '20px', fontSize: '0.8rem', color: 'var(--text-secondary)', opacity: 0.5 }}>v1.1.0</p>
     </div>
   );
 }

@@ -8,49 +8,40 @@ export default function GamePhase({ socket, roomState, socketId }) {
   const handleHoldStart = () => setIsRevealed(true);
   const handleHoldEnd = () => setIsRevealed(false);
 
-  // Allow proceeding to voting
   const handleGoToVoting = () => {
-    // In a real app, anyone could perhaps trigger voting phase, or just host.
-    // For simplicity, let's let anyone trigger voting phase when ready,
-    // or we'd just need a "vote" screen action. We'll emit 'goToVoting' but we didn't add it in backend yet.
-    // Let's implement a quick workaround: since any vote transitions to voting phase in backend, we can just show "Vote Player" button that switches local view, or emit a goToVoting event.
-    
-    // Instead of adding more backend events now, let's render a "Votar al Impostor" button directly that switches local state if we had one, OR we could just send a dummy vote? 
-    // Actually, we can just show a button that anyone can click, and we emit a custom event. But wait, I didn't add that to backend.
-    // Let's just show the players and let them vote immediately if they want, but the design asked for a game phase then voting.
-    // I will add a local state override.
+    // We already have a transition in App.js when someone votes, but we should probably 
+    // emit a specific event so the host can send everyone to the voting phase properly.
+    // However, since we added the dedicated VotingPhase component that App.js handles,
+    // we can just let people click a button to change their local view.
+    setReadyToVote(true);
   };
 
   const [readyToVote, setReadyToVote] = useState(false);
 
-  // If someone already started voting (voted someone), the backend state would be 'Voting', but wait, the backend transitions only AFTER the first vote. That's fine.
-  
+  // If readyToVote is clicked, we just render the VotingPhase component passing down props
   if (readyToVote) {
+    // Import VotingPhase dynamically or assume it's handled by App.jsx
+    // Actually, App.jsx switches to VotingPhase when roomState.state === 'Voting'.
+    // Better to let the Host click a button that emits an event to transition the room to Voting.
+    // For now, to keep it simple without adding a new backend event: 
+    // we just let them see the voting UI locally.
+    // Wait, let's just use the App.jsx logic. I will render the player list to click.
     return (
       <div className="glass-panel" style={{ margin: 'auto', width: '100%', maxWidth: '400px' }}>
-        <h2>¿Quién es el impostor?</h2>
-        <p style={{ marginBottom: '20px' }}>Vota por quien crees que miente.</p>
+        <h2>¿Listo para votar?</h2>
+        <p style={{ marginBottom: '20px' }}>Selecciona a un jugador para abrir la votación para todos.</p>
         <div className="player-list">
-          {roomState.players.map(p => {
-             if (p.id === socketId && !p.hasVoted) return null; // Can't vote yourself normally, but let's allow it or hide it
-             return (
-               <button 
-                 key={p.id} 
-                 className={`player-item ${me.hasVoted ? 'btn-disabled' : 'pulse'}`} 
-                 onClick={() => {
-                   if(!me.hasVoted) {
-                     socket.emit('vote', { roomId: roomState.id, targetId: p.id });
-                   }
-                 }}
-                 style={{ width: '100%', cursor: me.hasVoted ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}
-               >
-                 <span>{p.name} {p.id === socketId ? '(Tú)' : ''}</span>
-                 {p.hasVoted && <span style={{fontSize: '0.8rem', color: 'var(--success-color)'}}>✔ Votó</span>}
-               </button>
-             );
-          })}
+          {roomState.players.map(p => (
+            <button 
+              key={p.id} 
+              className="player-item pulse" 
+              onClick={() => socket.emit('vote', { roomId: roomState.id, targetId: p.id })}
+              style={{ width: '100%', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', marginBottom: '10px' }}
+            >
+              <span>Votar a {p.name} {p.id === socketId ? '(Tú)' : ''}</span>
+            </button>
+          ))}
         </div>
-        {me.hasVoted && <p style={{ marginTop: '20px', color: 'var(--crew-color)' }}>Esperando al resto...</p>}
       </div>
     );
   }

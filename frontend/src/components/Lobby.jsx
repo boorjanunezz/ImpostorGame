@@ -1,9 +1,14 @@
+import { useState } from 'react';
+
 export default function Lobby({ socket, roomState, socketId, playerName }) {
   const isHost = roomState.host === socketId;
+  const [impostorCount, setImpostorCount] = useState(1);
 
   const handleStartGame = () => {
-    socket.emit('startGame', { roomId: roomState.id, category: null }); // null category means random
+    socket.emit('startGame', { roomId: roomState.id, category: null, impostorCount }); // null category means random
   };
+
+  const maxImpostors = Math.max(1, Math.floor(roomState.players.length / 2) - 1) || 1;
 
   return (
     <div className="glass-panel" style={{ margin: 'auto', width: '100%' }}>
@@ -26,6 +31,17 @@ export default function Lobby({ socket, roomState, socketId, playerName }) {
           </div>
         ))}
       </div>
+
+      {isHost && roomState.players.length >= 3 && (
+        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+          <p style={{ marginBottom: '10px' }}>Número de Impostores:</p>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px' }}>
+            <button className="btn-secondary" style={{ width: '40px', padding: '5px' }} onClick={() => setImpostorCount(Math.max(1, impostorCount - 1))}>-</button>
+            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{impostorCount}</span>
+            <button className="btn-secondary" style={{ width: '40px', padding: '5px' }} onClick={() => setImpostorCount(Math.min(maxImpostors, impostorCount + 1))}>+</button>
+          </div>
+        </div>
+      )}
 
       {isHost ? (
         <button 
