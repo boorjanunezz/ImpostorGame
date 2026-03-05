@@ -1,0 +1,80 @@
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
+
+const {
+  createRoom,
+  joinRoom,
+  leaveRoom,
+  startGame,
+  registerVote,
+  getRoomState,
+} = require("./gameManager");
+
+const app = express();
+app.use(cors());
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  socket.on("createRoom", ({ hostName }, callback) => {
+    const { roomId, player } = createRoom(socket.id, hostName);
+    socket.join(roomId);
+    callback({ roomId, player });
+    io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+  });
+
+  socket.on("joinRoom", ({ roomId, playerName }, callback) => {
+    const result = joinRoom(roomId, socket.id, playerName);
+    if (result.error) {
+      callback({ error: result.error });
+      return;
+    }
+    socket.join(roomId);
+    callback({ player: result.player });
+    io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+  });
+
+  socket.on("startGame", ({ roomId, category }) => {
+    const result = startGame(roomId, category);
+    if (!result.error) {
+      io.to(roomId).emit("gameStarted", getRoomState(roomId));
+    }
+  });
+
+  socket.on("vote", ({ roomId, targetId }) => {
+    const result = registerVote(roomId, socket.id, targetId);
+    if (result && result.votingFinished) {
+      io.to(roomId).emit("gameEnded", getRoomState(roomId));
+    } else if (result) {
+      io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+    }
+  });
+
+  socket.on("returnToLobby", ({ roomId }) => {
+    // Just emit a state change if we had a reset function
+    // For now, let's keep it simple or implement resetRoom
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+    const roomsAffected = leaveRoom(socket.id);
+    roomsAffected.forEach((roomId) => {
+      io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+    });
+  });
+});
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
