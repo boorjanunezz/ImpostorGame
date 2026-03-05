@@ -61,8 +61,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("returnToLobby", ({ roomId }) => {
-    // Just emit a state change if we had a reset function
-    // For now, let's keep it simple or implement resetRoom
+    const { resetRoom } = require("./gameManager"); // We didn't import it at the top, but we can do it here or add it above
+    const result = resetRoom(roomId);
+    if (result && result.success) {
+      io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+    }
   });
 
   socket.on("disconnect", () => {

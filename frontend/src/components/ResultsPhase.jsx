@@ -21,15 +21,7 @@ export default function ResultsPhase({ socket, roomState, socketId }) {
   }, []);
 
   const handlePlayAgain = () => {
-    // Basic implementation: send everyone back to lobbying by host
-    // Since we don't have a reset endpoint, let's just cheat and 
-    // force a page reload or a new room for now, or just emit a start event again?
-    // Easiest is to emit an event to return to lobby. 
-    // Client side quick fix: reload window or we add a reset event.
-    // For now we'll just reload the page for everyone if host clicks, or they have to rejoin.
-    // Actually, let's emit 'returnToLobby' and the backend won't do much,
-    // so we just reload window.location.reload() for a quick game restart.
-    window.location.reload();
+    socket.emit('returnToLobby', { roomId: roomState.id });
   };
 
   if (!showImpostor) {
@@ -69,9 +61,9 @@ export default function ResultsPhase({ socket, roomState, socketId }) {
       </p>
 
       {isHost ? (
-        <button className="btn-primary pulse" onClick={handlePlayAgain}>Nueva partida (Recargar)</button>
+        <button className="btn-primary pulse" onClick={handlePlayAgain}>Volver a la Sala</button>
       ) : (
-        <p style={{ opacity: 0.7 }}>Esperando al host o puedes recargar la página...</p>
+        <p style={{ opacity: 0.7 }}>Esperando a que el Host reinicie la sala...</p>
       )}
     </div>
   );

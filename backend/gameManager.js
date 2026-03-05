@@ -2,11 +2,14 @@
 
 // Categories and Words
 const WORDS = {
-  Objetos: ['Tenedor', 'Cuchara', 'Silla', 'Mesa', 'Reloj', 'Gafas', 'Espejo', 'Llave', 'Teléfono', 'Cartera', 'Bolígrafo', 'Botella'],
-  Animales: ['Perro', 'Gato', 'Elefante', 'León', 'Tigre', 'Cebra', 'Jirafa', 'Mono', 'Oso', 'Lobo', 'Delfín', 'Pingüino'],
-  Comida: ['Pizza', 'Hamburguesa', 'Sushi', 'Taco', 'Pasta', 'Ensalada', 'Sopa', 'Queso', 'Pan', 'Huevo', 'Manzana', 'Plátano'],
-  Profesiones: ['Médico', 'Abogado', 'Profesor', 'Ingeniero', 'Bombero', 'Policía', 'Pintor', 'Músico', 'Cocinero', 'Actor', 'Piloto', 'Carpintero'],
-  Peliculas: ['Titanic', 'Avatar', 'Matrix', 'Inception', 'Star Wars', 'Jurassic Park', 'El Padrino', 'Gladiator', 'Rocky', 'Jaws', 'Alien', 'Terminator'],
+  Objetos: ['Tenedor', 'Cuchara', 'Silla', 'Mesa', 'Reloj', 'Gafas', 'Espejo', 'Llave', 'Teléfono', 'Cartera', 'Bolígrafo', 'Botella', 'Cargador', 'Auriculares', 'Vaper'],
+  Animales: ['Perro', 'Gato', 'Elefante', 'León', 'Tigre', 'Cebra', 'Jirafa', 'Mono', 'Oso', 'Lobo', 'Delfín', 'Pingüino', 'Capibara', 'Mapache'],
+  Comida: ['Pizza', 'Hamburguesa', 'Sushi', 'Taco', 'Pasta', 'Ensalada', 'Sopa', 'Queso', 'Pan', 'Huevo', 'Manzana', 'Kebab', 'Shawarma', 'Burrito'],
+  Profesiones: ['Médico', 'Abogado', 'Profesor', 'Ingeniero', 'Bombero', 'Policía', 'Pintor', 'Músico', 'Cocinero', 'Actor', 'Piloto', 'Carpintero', 'Influencer', 'Streamer', 'Tiktoker', 'Cajero', 'Camello'],
+  Peliculas: ['Titanic', 'Avatar', 'Matrix', 'Inception', 'Star Wars', 'Jurassic Park', 'El Padrino', 'Gladiator', 'Rocky', 'Jaws', 'Alien', 'Terminator', 'Spiderman', 'Shrek'],
+  GeneracionZ: ['Tinder', 'TikTok', 'Instagram', 'Ghosting', 'Red Flag', 'Cringe', 'Stalkear', 'Meme', 'Hater', 'Outfit', 'Crush', 'Beef', 'Flow', 'Shippear', 'NPC', 'POV'],
+  HumorNegro: ['Funeral', 'Divorcio', 'Ataúd', 'Orfanato', 'Cementerio', 'Impuestos', 'Suicidio', 'Morgue', 'Calvicie', 'Infidelidad', 'Bancarrota', 'Inyección', 'Depresión', 'Hemorroides'],
+  Fiesta: ['Discoteca', 'Resaca', 'Chupito', 'Garrafón', 'Vómito', 'Cubata', 'Portero', 'After', 'Borracho', 'Cerveza', 'Rave', 'Botellón', 'VIP', 'Puta Vuelta'],
 };
 
 // In-memory state
@@ -159,6 +162,24 @@ function registerVote(roomId, socketId, targetId) {
   return { votingFinished: false };
 }
 
+function resetRoom(roomId) {
+  const room = rooms[roomId];
+  if (!room) return null;
+
+  room.state = 'Lobby';
+  room.secretWord = null;
+  room.category = null;
+  room.impostorId = null;
+
+  room.players.forEach(p => {
+    p.role = null;
+    p.hasVoted = false;
+    p.votesReceived = 0;
+  });
+
+  return { success: true };
+}
+
 function getRoomState(roomId) {
   const room = rooms[roomId];
   if (!room) return null;
@@ -176,6 +197,7 @@ module.exports = {
   leaveRoom,
   startGame,
   registerVote,
+  resetRoom,
   getRoomState,
   WORDS
 };
