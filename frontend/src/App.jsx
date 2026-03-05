@@ -7,9 +7,10 @@ import VotingPhase from './components/VotingPhase';
 import ResultsPhase from './components/ResultsPhase';
 import './index.css';
 
-// For production on Vercel/Render, the backend URL will be provided via env or we connect to the same host if served together.
-// For now, let's connect to localhost in development, or the dynamically assigned production URL.
-const backendUrl = import.meta.env.VITE_BACKEND_URL || `http://${window.location.hostname}:3001`;
+// For production on Vercel, we connect to the live Render.com backend.
+// Note: Render free tier sleeps after 15 mins of inactivity.
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168');
+const backendUrl = isLocal ? `http://${window.location.hostname}:3001` : 'https://impostor-backend-72jv.onrender.com';
 const socket = io(backendUrl);
 
 function App() {
