@@ -55,7 +55,10 @@ function createRoom(socketId, hostName) {
     players: [hostPlayer],
     secretWord: null,
     category: null,
-    impostorIds: [], // Changed from impostorId to array
+    impostorIds: [],
+    timer: null,
+    timerActive: false,
+    messages: [], // Array of { sender: string, text: string, timestamp: string }
   };
 
   return { roomId, player: hostPlayer };
@@ -84,6 +87,10 @@ function joinRoom(roomId, socketId, playerName) {
   };
 
   room.players.push(newPlayer);
+  
+  // Add system message
+  addChatMessage(roomId, 'Sistema', `${playerName} se ha unido.`);
+
   return { player: newPlayer };
 }
 
@@ -102,6 +109,11 @@ function leaveRoom(socketId) {
       } else if (room.host === socketId) {
         // Assign new host
         room.host = room.players[0].id;
+      }
+
+      // Add system message if not empty
+      if (room.players.length > 0) {
+        addChatMessage(roomId, 'Sistema', `Alguien se ha ido.`);
       }
     }
   }
@@ -145,6 +157,10 @@ function startGame(roomId, categoryName, impostorCount = 1) {
     room.impostorIds.push(room.players[chosenIndex].id);
   }
 
+  // Set a default timer for Playing phase
+  room.timer = 120; // 2 minutes to talk
+  room.timerActive = true;
+
   return { success: true };
 }
 
@@ -157,13 +173,8 @@ function registerVote(roomId, socketId, targetId) {
   
   if (!voter || !target) return null;
 
-  // If changing vote
-  if (voter.hasVoted && voter.votedFor) {
-    const previousTarget = room.players.find(p => p.id === voter.votedFor);
-    if (previousTarget) {
-      previousTarget.votesReceived = Math.max(0, previousTarget.votesReceived - 1);
-    }
-  }
+  // Prevent voting more than once if already voted
+  if (voter.hasVoted) return null;
 
   voter.hasVoted = true;
   voter.votedFor = targetId;
@@ -171,16 +182,26 @@ function registerVote(roomId, socketId, targetId) {
   
   if(room.state !== 'Voting') {
       room.state = 'Voting';
+      room.timer = 60; // 1 minute to vote
+      room.timerActive = true;
   }
 
-  // We no longer auto-transition. Host must click End Voting.
   return { votingFinished: false };
 }
 
 function endVotingPhase(roomId) {
   const room = rooms[roomId];
   if (!room) return null;
+
+  // Check if everyone has voted
+  const everyoneVoted = room.players.every(p => p.hasVoted);
+  if (!everyoneVoted) {
+    return { error: 'Todavía faltan jugadores por votar.' };
+  }
+
   room.state = 'Results';
+  room.timer = null;
+  room.timerActive = false;
   return { success: true };
 }
 
@@ -192,6 +213,9 @@ function resetRoom(roomId) {
   room.secretWord = null;
   room.category = null;
   room.impostorIds = [];
+  room.timer = null;
+  room.timerActive = false;
+  room.messages = [];
 
   room.players.forEach(p => {
     p.role = null;
@@ -203,15 +227,79 @@ function resetRoom(roomId) {
   return { success: true };
 }
 
-function getRoomState(roomId) {
+function getRoomStateForPlayer(roomId, socketId) {
   const room = rooms[roomId];
   if (!room) return null;
 
-  // We should not send the secretWord and impostorId to everyone unless it's Results phase.
-  // Actually, wait, the client needs to know its own role.
-  // To keep it clean, we'll send the full state and let the client filter in the frontend based on its socket.id.
-  // In a super secure app, we'd emit individual states to each socket. For this fun project with friends, sending full state is easier to debug and manage.
-  return room;
+  // Deep copy to avoid mutating the original room state
+  const state = JSON.parse(JSON.stringify(room));
+
+  const me = room.players.find(p => p.id === socketId);
+  const isImpostor = me && me.role === 'impostor';
+
+  // Security: only reveal roles and secret word if the game is over (Results)
+  if (room.state !== 'Results') {
+    // Hide secretWord if not crew
+    if (isImpostor) {
+        state.secretWord = '???';
+    } else if (room.state !== 'Playing') {
+        state.secretWord = null;
+    }
+    
+    // Hide ROLES of other players
+    state.players.forEach(p => {
+        if (p.id !== socketId) {
+            p.role = null;
+        }
+    });
+
+    // Hide all impostorIds
+    state.impostorIds = [];
+  }
+
+  return state;
+}
+
+function tickRooms() {
+  const affectedRooms = [];
+  for (const roomId in rooms) {
+    const room = rooms[roomId];
+    if (room.timerActive && room.timer !== null) {
+      room.timer--;
+      affectedRooms.push(roomId);
+
+      if (room.timer <= 0) {
+        room.timerActive = false;
+        room.timer = 0;
+        // Auto-transition to Voting if Playing, or to Results if Voting
+        if (room.state === 'Playing') {
+          room.state = 'Voting';
+          room.timer = 60;
+          room.timerActive = true;
+        } else if (room.state === 'Voting') {
+          room.state = 'Results';
+          room.timer = null;
+          room.timerActive = false;
+        }
+      }
+    }
+  }
+  return affectedRooms;
+}
+
+function addChatMessage(roomId, senderName, text) {
+  const room = rooms[roomId];
+  if (!room) return;
+
+  room.messages.push({
+    sender: senderName,
+    text: text,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    type: senderName === 'Sistema' ? 'system' : 'chat'
+  });
+
+  // Keep only the last 50 messages
+  if (room.messages.length > 50) room.messages.shift();
 }
 
 module.exports = {
@@ -222,6 +310,9 @@ module.exports = {
   registerVote,
   endVotingPhase,
   resetRoom,
-  getRoomState,
+  getRoomStateForPlayer,
+  getRoomState: (id) => rooms[id], 
+  tickRooms,
+  addChatMessage,
   WORDS
 };

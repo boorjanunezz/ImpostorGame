@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Chat from './Chat';
 
 export default function ResultsPhase({ socket, roomState, socketId }) {
   const [showImpostor, setShowImpostor] = useState(false);
@@ -75,6 +76,8 @@ export default function ResultsPhase({ socket, roomState, socketId }) {
       ) : (
         <p style={{ opacity: 0.7 }}>Esperando a que el Host reinicie la sala...</p>
       )}
+
+      <Chat socket={socket} roomId={roomState.id} messages={roomState.messages} />
     </div>
   );
 }

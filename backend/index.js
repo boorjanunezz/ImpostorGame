@@ -9,7 +9,11 @@ const {
   leaveRoom,
   startGame,
   registerVote,
+  endVotingPhase,
+  resetRoom,
+  getRoomStateForPlayer,
   getRoomState,
+  addChatMessage,
 } = require("./gameManager");
 
 const app = express();
@@ -23,6 +27,18 @@ const io = new Server(server, {
   },
 });
 
+// Broadcast helper to send filtered state to each player
+function broadcastRoom(roomId) {
+  const room = getRoomState(roomId);
+  if (!room) return;
+
+  room.players.forEach((player) => {
+    io.to(player.id).emit("roomUpdated", getRoomStateForPlayer(roomId, player.id));
+  });
+}
+
+// Timer logic is handled by the tickRooms loop at the bottom.
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
@@ -30,7 +46,7 @@ io.on("connection", (socket) => {
     const { roomId, player } = createRoom(socket.id, hostName);
     socket.join(roomId);
     callback({ roomId, player });
-    io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+    broadcastRoom(roomId);
   });
 
   socket.on("joinRoom", ({ roomId, playerName }, callback) => {
@@ -41,36 +57,43 @@ io.on("connection", (socket) => {
     }
     socket.join(roomId);
     callback({ player: result.player });
-    io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+    broadcastRoom(roomId);
   });
 
   socket.on("startGame", ({ roomId, category, impostorCount }) => {
     const result = startGame(roomId, category, impostorCount);
     if (!result.error) {
-      io.to(roomId).emit("gameStarted", getRoomState(roomId));
+      broadcastRoom(roomId);
     }
   });
 
   socket.on("vote", ({ roomId, targetId }) => {
     const result = registerVote(roomId, socket.id, targetId);
     if (result) {
-      io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+      broadcastRoom(roomId);
+    }
+  });
+
+  socket.on("sendMessage", ({ roomId, text }) => {
+    const room = getRoomState(roomId);
+    const player = room?.players.find(p => p.id === socket.id);
+    if (player) {
+        addChatMessage(roomId, player.name, text);
+        broadcastRoom(roomId);
     }
   });
 
   socket.on("endVoting", ({ roomId }) => {
-    const { endVotingPhase } = require("./gameManager");
     const result = endVotingPhase(roomId);
     if (result && result.success) {
-      io.to(roomId).emit("gameEnded", getRoomState(roomId));
+      broadcastRoom(roomId);
     }
   });
 
   socket.on("returnToLobby", ({ roomId }) => {
-    const { resetRoom } = require("./gameManager"); // We didn't import it at the top, but we can do it here or add it above
     const result = resetRoom(roomId);
     if (result && result.success) {
-      io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+      broadcastRoom(roomId);
     }
   });
 
@@ -78,10 +101,19 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.id);
     const roomsAffected = leaveRoom(socket.id);
     roomsAffected.forEach((roomId) => {
-      io.to(roomId).emit("roomUpdated", getRoomState(roomId));
+      broadcastRoom(roomId);
     });
   });
 });
+
+// Simple ticker within index.js to handle time
+setInterval(() => {
+    const { tickRooms } = require("./gameManager");
+    const affectedRooms = tickRooms();
+    affectedRooms.forEach(roomId => {
+        broadcastRoom(roomId);
+    });
+}, 1000);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

@@ -29,7 +29,7 @@ export default function Home({ socket, setPlayerName, playerName }) {
 
   return (
     <div className="glass-panel" style={{ margin: 'auto' }}>
-      <h1>El Impostor</h1>
+      <h1>Impostor</h1>
       <p style={{ marginBottom: '30px' }}>Encuentra al impostor entre tus amigos</p>
 
       {mode === 'menu' && (

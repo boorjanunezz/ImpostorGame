@@ -1,5 +1,103 @@
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap");
 
+.timer-badge {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 5px 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    display: inline-block;
+    margin-bottom: 15px;
+    color: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    animation: pulse 2s infinite;
+}
+
+.chat-container {
+    margin-top: 20px;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 5px;
+    text-align: left;
+    min-height: 100px;
+}
+
+.chat-message {
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px 10px;
+    border-radius: 8px;
+    position: relative;
+}
+
+.chat-sender {
+    font-weight: bold;
+    color: var(--accent-color);
+    margin-right: 5px;
+}
+
+.chat-text {
+    word-break: break-all;
+}
+
+.chat-message.system-msg {
+    background: transparent;
+    border-left: 2px solid var(--accent-color);
+    font-style: italic;
+    opacity: 0.7;
+}
+
+.chat-message.system-msg .chat-text {
+    color: var(--text-secondary);
+}
+
+.chat-time {
+    font-size: 0.6rem;
+    opacity: 0.5;
+    margin-left: 10px;
+}
+
+.chat-input-area {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: white;
+}
+
+.chat-send-btn {
+    background: var(--accent-color);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    width: 40px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.chat-send-btn:hover {
+    transform: scale(1.05);
+}
+
 :root {
   --bg-color: #0d0f1a;
   --surface-color: rgba(255, 255, 255, 0.05);
@@ -28,7 +126,8 @@ body {
   align-items: center;
   min-height: 100vh;
   margin: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   background-image:
     radial-gradient(
       circle at 15% 50%,
@@ -41,7 +140,7 @@ body {
 #root {
   width: 100%;
   max-width: 600px;
-  height: 100vh;
+  min-height: 100vh;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -292,6 +391,9 @@ input:focus {
   }
   .card-container {
     height: 250px;
+  }
+  .chat-container {
+    max-height: 200px;
   }
 }
 

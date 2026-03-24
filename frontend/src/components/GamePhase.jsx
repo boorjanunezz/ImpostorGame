@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Chat from './Chat';
 
 export default function GamePhase({ socket, roomState, socketId }) {
   const [isRevealed, setIsRevealed] = useState(false);
@@ -28,17 +29,24 @@ export default function GamePhase({ socket, roomState, socketId }) {
     // Wait, let's just use the App.jsx logic. I will render the player list to click.
     return (
       <div className="glass-panel" style={{ margin: 'auto', width: '100%', maxWidth: '400px' }}>
-        <h2>¿Listo para votar?</h2>
-        <p style={{ marginBottom: '20px' }}>Selecciona a un jugador para abrir la votación para todos.</p>
+        <h2>¡Tiempo de votar!</h2>
+      {roomState.timer !== null && (
+        <div className="timer-badge">
+          ⏱️ {Math.floor(roomState.timer / 60)}:{(roomState.timer % 60).toString().padStart(2, '0')}
+        </div>
+      )}
+      <p style={{ marginBottom: '20px' }}>¿Quién es el impostor? El voto es único y no se puede cambiar.</p>
         <div className="player-list">
           {roomState.players.map(p => (
             <button 
               key={p.id} 
-              className="player-item pulse" 
+              className={`player-item ${me.hasVoted ? '' : 'pulse'}`} 
+              disabled={me.hasVoted}
               onClick={() => socket.emit('vote', { roomId: roomState.id, targetId: p.id })}
-              style={{ width: '100%', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', marginBottom: '10px' }}
+              style={{ width: '100%', cursor: me.hasVoted ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', marginBottom: '10px', opacity: me.hasVoted ? 0.5 : 1 }}
             >
               <span>Votar a {p.name} {p.id === socketId ? '(Tú)' : ''}</span>
+              {me.votedFor === p.id && <span style={{marginLeft: '10px'}}>🎯</span>}
             </button>
           ))}
         </div>
@@ -49,6 +57,11 @@ export default function GamePhase({ socket, roomState, socketId }) {
   return (
     <div className="glass-panel" style={{ margin: 'auto', width: '100%', maxWidth: '400px' }}>
       <h2>Ronda Actual</h2>
+      {roomState.timer !== null && (
+        <div className="timer-badge">
+          ⏱️ {Math.floor(roomState.timer / 60)}:{(roomState.timer % 60).toString().padStart(2, '0')}
+        </div>
+      )}
       <p>Categoría: <span style={{ fontWeight: 'bold', color: 'var(--accent-color)' }}>{roomState.category}</span></p>
 
       <div 
@@ -88,6 +101,8 @@ export default function GamePhase({ socket, roomState, socketId }) {
       <button className="btn-secondary" onClick={() => setReadyToVote(true)}>
         Pasar a Votación
       </button>
+
+      <Chat socket={socket} roomId={roomState.id} messages={roomState.messages} />
     </div>
   );
 }
