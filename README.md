@@ -85,4 +85,4 @@
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-*Developed with ❤️ by @boorjanunezz and Alejandro Benítez as a personal project to play with friends.*
+*Developed with ❤️ by Borja Nuñez Salegui as a personal project to play with friends.*
